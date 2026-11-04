@@ -1,0 +1,40 @@
+{
+  "name": "@nimanzik/pi-prompt-mode",
+  "version": "0.1.0",
+  "description": "Switch Pi model and thinking presets from the prompt editor.",
+  "type": "module",
+  "license": "MIT",
+  "author": {
+    "name": "Nima Nooshiri"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nimanzik/pi-kit.git",
+    "directory": "extensions/pi-prompt-mode"
+  },
+  "bugs": {
+    "url": "https://github.com/nimanzik/pi-kit/issues"
+  },
+  "homepage": "https://github.com/nimanzik/pi-kit/tree/main/extensions/pi-prompt-mode#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["prompt-mode.ts", "CHANGELOG.md", "README.md", "LICENSE"],
+  "keywords": ["pi-package", "pi-extension"],
+  "pi": {
+    "extensions": ["./prompt-mode.ts"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "scripts": {
+    "test": "node --experimental-vm-modules --test prompt-mode.test.mjs",
+    "typecheck": "tsc"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^1.5.0",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}
