@@ -16,6 +16,12 @@ Load Auto Title without saving it to Pi's settings:
 pi -e ./extensions/pi-auto-title
 ```
 
+Load Prompt Mode without saving it to Pi's settings:
+
+```sh
+pi -e ./extensions/pi-prompt-mode
+```
+
 ## Adding an extension
 
 Keep each extension in `extensions/<name>/` with its own package manifest,
@@ -57,6 +63,14 @@ use `@nimanzik`:
 
 ```sh
 npm publish --workspace @nimanzik/pi-auto-title --access public
+```
+
+For Prompt Mode, use the same steps with `@nimanzik/pi-prompt-mode`. Before
+publishing, check `/mode`, `Alt+O`, `Alt+N`, mode editing, and prompt history in
+the extracted package. Publish with:
+
+```sh
+npm publish --workspace @nimanzik/pi-prompt-mode --access public
 ```
 
 After the first release, update the installation instructions in both READMEs
