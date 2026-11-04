@@ -1,0 +1,40 @@
+{
+  "name": "@nimanzik/pi-auto-title",
+  "version": "0.1.0",
+  "description": "Automatically name Pi sessions from their first request.",
+  "type": "module",
+  "license": "MIT",
+  "readme": "README.md",
+  "author": {
+    "name": "Nima Nooshiri"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nimanzik/pi-kit.git",
+    "directory": "extensions/pi-auto-title"
+  },
+  "bugs": {
+    "url": "https://github.com/nimanzik/pi-kit/issues"
+  },
+  "homepage": "https://github.com/nimanzik/pi-kit/tree/main/extensions/pi-auto-title#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["auto-title.ts", "CHANGELOG.md", "README.md", "LICENSE"],
+  "keywords": ["pi-package", "pi-extension"],
+  "pi": {
+    "extensions": ["./auto-title.ts"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "scripts": {
+    "test": "node --experimental-vm-modules --test auto-title.test.mjs",
+    "typecheck": "tsc"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^1.5.0",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}

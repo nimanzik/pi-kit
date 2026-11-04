@@ -1,0 +1,9 @@
+{
+  "name": "pi-kit",
+  "private": true,
+  "workspaces": ["extensions/*"],
+  "scripts": {
+    "test": "npm test --workspaces",
+    "typecheck": "npm run typecheck --workspaces"
+  }
+}
