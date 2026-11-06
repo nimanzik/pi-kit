@@ -1,6 +1,6 @@
 {
   "name": "@nimanzik/pi-prompt-mode",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Switch Pi model and thinking presets from the prompt editor.",
   "type": "module",
   "license": "MIT",
