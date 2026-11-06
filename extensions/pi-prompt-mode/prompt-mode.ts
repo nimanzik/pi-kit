@@ -1,5 +1,5 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { CustomEditor, getAgentDir } from "@earendil-works/pi-coding-agent";
+import { CustomEditor, getAgentDir, keyHint, rawKeyHint } from "@earendil-works/pi-coding-agent";
 import { fuzzyFilter, Input, SelectList, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import path from "node:path";
 import fs from "node:fs/promises";
@@ -691,7 +691,61 @@ async function selectModeUI(pi: ExtensionAPI, ctx: ExtensionContext): Promise<vo
 	while (true) {
 		await ensureRuntime(pi, ctx);
 		const names = orderedModeNames(runtime.data.modes);
-		const choice = await ctx.ui.select(`Mode (current: ${runtime.currentMode})`, [...names, MODE_UI_CONFIGURE]);
+		const title = `Mode (current: ${runtime.currentMode})`;
+		const options = [...names, MODE_UI_CONFIGURE];
+		const choice = ctx.mode === "rpc"
+			? await ctx.ui.select(title, options)
+			: await ctx.ui.custom<string | undefined>((tui, theme, keybindings, done) => {
+				const createList = (visibleRows: number) => {
+					const list = new SelectList(options.map((label) => ({ value: label, label })), visibleRows, {
+						selectedPrefix: (text) => theme.fg("accent", text),
+						selectedText: (text) => theme.fg("accent", text),
+						description: (text) => theme.fg("muted", text),
+						scrollInfo: (text) => theme.fg("dim", text),
+						noMatch: (text) => theme.fg("warning", text),
+					});
+					list.onSelect = (item) => done(item.value);
+					list.onCancel = () => done(undefined);
+					return list;
+				};
+				let visibleRows = 1;
+				let list = createList(visibleRows);
+				return {
+					render: (width) => {
+						// The frame takes eight rows; a scrolling list needs one more for its indicator.
+						const availableRows = tui.terminal.rows - 8;
+						const nextVisibleRows = Math.max(1, Math.min(10,
+							availableRows - (options.length > availableRows ? 1 : 0)));
+						if (nextVisibleRows !== visibleRows) {
+							const selectedIndex = options.indexOf(list.getSelectedItem()!.value);
+							visibleRows = nextVisibleRows;
+							list = createList(visibleRows);
+							list.setSelectedIndex(selectedIndex);
+						}
+						const border = theme.fg("border", "─".repeat(Math.max(1, width)));
+						const help = rawKeyHint("↑↓", "navigate") + "  " +
+							keyHint("tui.select.confirm", "select") + "  " + keyHint("tui.select.cancel", "cancel");
+						return [
+							border, "",
+							truncateToWidth(" " + theme.fg("accent", theme.bold(title)), width), "",
+							...list.render(Math.max(1, width - 2)).map((line) => " " + line), "",
+							truncateToWidth(" " + help, width), "", border,
+						];
+					},
+					invalidate: () => list.invalidate(),
+					handleInput(data) {
+						const index = options.indexOf(list.getSelectedItem()!.value);
+						if (keybindings.matches(data, "tui.select.up") || data === "k") {
+							list.setSelectedIndex((index - 1 + options.length) % options.length);
+						} else if (keybindings.matches(data, "tui.select.down") || data === "j") {
+							list.setSelectedIndex((index + 1) % options.length);
+						} else {
+							list.handleInput(data);
+						}
+						tui.requestRender();
+					},
+				};
+			});
 		if (!choice) return;
 
 		if (choice === MODE_UI_CONFIGURE) {
