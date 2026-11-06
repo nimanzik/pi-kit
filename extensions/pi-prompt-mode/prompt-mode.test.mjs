@@ -23,9 +23,13 @@ async function setup(t, configuration, options = {}) {
   const module = new SourceTextModule(`${source}\nexport { atomicWriteUtf8, renameModeUI, loadPromptHistoryForCwd, applyEditor };`, { context });
   await module.link(async (specifier) => {
     const exports = specifier === "@earendil-works/pi-coding-agent"
-      ? { CustomEditor: class {}, getAgentDir: () => join(directory, "global") }
+      ? {
+        CustomEditor: class {}, getAgentDir: () => join(directory, "global"),
+        keyHint: (key, label) => `${key} ${label}`,
+        rawKeyHint: (key, label) => `${key} ${label}`,
+      }
       : specifier === "@earendil-works/pi-tui"
-        ? { fuzzyFilter() {}, Input: class {}, SelectList: class {}, truncateToWidth() {}, visibleWidth() {} }
+        ? await import(specifier)
         : specifier === "node:fs/promises"
           ? { default: { ...(await import(specifier)).default, ...options.fs } }
           : await import(specifier);
@@ -228,4 +232,97 @@ test("configuration stat failures propagate instead of selecting another configu
   const failure = Object.assign(new Error("permission denied"), { code: "EACCES" });
   const app = await setup(t, undefined, { fs: { stat: async () => { throw failure; } } });
   await assert.rejects(app.events.session_start({ reason: "new" }, app.ctx), (error) => error === failure);
+});
+
+test("mode picker wraps arrow navigation and supports selection and cancellation", async (t) => {
+  const app = await setup(t, { version: 1, modes: {
+    default: { thinkingLevel: "max" }, fast: { thinkingLevel: "off" },
+  } });
+  app.ctx.hasUI = true;
+  let configureOpened = false;
+  let keys = ["\x1b[A", "\r"];
+  app.ctx.ui = {
+    custom: async (factory) => {
+      let result;
+      const component = factory(
+        { terminal: { rows: 24 }, requestRender() {} },
+        { fg: (_color, text) => text, bold: (text) => text },
+        (await import("@earendil-works/pi-tui")).getKeybindings(), (value) => { result = value; },
+      );
+      const lines = component.render(80);
+      assert.equal(lines[0], "─".repeat(80));
+      assert.equal(lines.at(-1), lines[0]);
+      assert.match(lines[4], /→ default/);
+      assert.match(lines.at(-3), /↑↓ navigate.*select.*cancel/);
+      for (const key of keys) component.handleInput(key);
+      return result;
+    },
+    select: async (title) => {
+      assert.equal(title, "Configure modes");
+      configureOpened = true;
+      return undefined;
+    },
+  };
+  // Up from the first option wraps to Configure modes; cancel on returning.
+  const originalCustom = app.ctx.ui.custom;
+  app.ctx.ui.custom = async (...args) => {
+    const result = await originalCustom(...args);
+    keys = ["\x1b"];
+    return result;
+  };
+  await app.commands.mode("", app.ctx);
+  assert.equal(configureOpened, true);
+  // Down from the last option wraps to default.
+  app.pi.setThinkingLevel("off");
+  keys = ["\x1b[A", "\x1b[B", "\r"];
+  await app.shortcuts["alt+o"](app.ctx);
+  assert.equal(app.thinking, "max");
+});
+
+test("mode picker fits short terminals and preserves selection while resizing", async (t) => {
+  const app = await setup(t, { version: 1, modes: Object.fromEntries(
+    ["default", ...Array.from({ length: 10 }, (_, i) => `mode${i}`)].map((name) => [name, {}]),
+  ) });
+  app.ctx.hasUI = true;
+  app.ctx.ui = {
+    custom: async (factory) => {
+      const terminal = { rows: 12 };
+      const keybindings = (await import("@earendil-works/pi-tui")).getKeybindings();
+      const component = factory(
+        { terminal, requestRender() {} },
+        { fg: (_color, text) => text, bold: (text) => text },
+        { matches: (data, action) =>
+          (data === "h" && action === "tui.select.up") ||
+          (data === "l" && action === "tui.select.down") || keybindings.matches(data, action) },
+        () => {},
+      );
+      const check = (selected, itemCount) => {
+        const lines = component.render(80);
+        assert.ok(lines.length <= terminal.rows);
+        assert.equal(lines.slice(4, -4).length, itemCount + 1);
+        assert.ok(lines.some((line) => line.includes(`→ ${selected}`)));
+        return lines;
+      };
+      assert.ok(check("default", 3).some((line) => line.includes("(1/12)")));
+      component.handleInput("k");
+      assert.ok(check("Configure modes…", 3).some((line) => line.includes("(12/12)")));
+      component.handleInput("j");
+      check("default", 3);
+      component.handleInput("h");
+      check("Configure modes…", 3);
+      component.handleInput("l");
+      check("default", 3);
+      for (let i = 0; i < 6; i++) component.handleInput("j");
+      check("mode5", 3);
+      terminal.rows = 24;
+      check("mode5", 10);
+      terminal.rows = 10;
+      check("mode5", 1);
+      component.handleInput("k");
+      check("mode4", 1);
+      component.handleInput("\x1b");
+      return undefined;
+    },
+  };
+  await app.commands.mode("", app.ctx);
 });
